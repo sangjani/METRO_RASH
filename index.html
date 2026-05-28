@@ -1598,7 +1598,7 @@ function openAdminLogin(){
 function closeAdmin(){ document.getElementById('adminView').classList.remove('open'); }
 function checkPin(){
   const pin=document.getElementById('al-pin').value;
-  if(pin===(S.pin||'1234')){
+  if(pin===(S.pin||'6421')){
     document.getElementById('aLoginWrap').style.display='none';
     document.getElementById('aDashWrap').style.display='flex';
     loadAdminDash();
