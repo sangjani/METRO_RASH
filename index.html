@@ -459,6 +459,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
   font-weight:700;font-size:13px;cursor:pointer;
 }
 </style>
+<script src='//libtl.com/sdk.js' data-zone='11069622' data-sdk='show_11069622'></script>
 </head>
 <body>
 
@@ -634,9 +635,8 @@ canvas{display:block;position:absolute;top:0;left:0;}
   <div class="sec-head" style="margin:8px 14px 8px;">⚙️ More</div>
   <div class="menu-it" onclick="openAdminLogin()"><div class="mi-ic">🛡️</div><div class="mi-lb">Admin Panel</div><div class="mi-ar">›</div></div>
   <div class="menu-it" onclick="showToast('Coming soon!',false)"><div class="mi-ic">👥</div><div class="mi-lb">Invite Friends (+500 🪙)</div><div class="mi-ar">›</div></div>
-  <div class="menu-it" onclick="showToast('Support: @MetroRushBot',false)"><div class="mi-ic">💬</div><div class="mi-lb">Support</div><div class="mi-ar">›</div></div>
-  <div class="menu-it" onclick="resetAll()" style="margin-bottom:20px;"><div class="mi-ic">🗑️</div><div class="mi-lb" style="color:var(--danger)">Reset All Data</div><div class="mi-ar">›</div></div>
-</div>
+  <div class="menu-it" onclick="showToast('Support: @Metro_Rush_Bot',false)"><div class="mi-ic">💬</div><div class="mi-lb">Support</div><div class="mi-ar">›</div></div>
+  </div>
 
 <!-- ===== ADMIN VIEW ===== -->
 <div id="adminView">
@@ -653,7 +653,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
       <p>Enter PIN to access the control panel</p>
       <input type="password" class="al-pin" id="al-pin" placeholder="••••" maxlength="6">
       <button class="al-btn" onclick="checkPin()">ENTER</button>
-      <div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:6px;">Default PIN: 1234</div>
+      
     </div>
   </div>
   <!-- Dashboard -->
@@ -710,7 +710,7 @@ let S = JSON.parse(localStorage.getItem('MR_v2') || 'null') || {
   coins:0, totalCoins:0, bestScore:0, gamesPlayed:0,
   totalWithdrawn:0, transactions:[], withdrawalRequests:[],
   streak:1, lastPlayed:null, boardUses:0, distanceM:0,
-  pin:'1234'
+  pin:'6421'
 };
 function save(){ localStorage.setItem('MR_v2', JSON.stringify(S)); }
 function getCoinDisplay(){ return S.coins; }
@@ -834,6 +834,30 @@ function endGame(){
   document.getElementById('gameoverScreen').classList.remove('hidden');
   checkAchs();
   if(navigator.vibrate) navigator.vibrate([100,50,100]);
+
+// In-App Interstitial
+
+show_11069622({
+  type: 'inApp',
+  inAppSettings: {
+    frequency: 60,
+    capping: 0.1,
+    interval: 30,
+    timeout: 5,
+    everyPage: false
+  }
+})
+
+/*
+This value is decoded as follows:
+- show automatically 2 ads
+  within 0.1 hours (6 minutes)
+  with a 30-second interval between them
+  and a 5-second delay before the first one is shown.
+  The last digit, 0, means that the session will be saved when you navigate between pages.
+  If you set the last digit as 1, then at any transition between pages,
+  the session will be reset, and the ads will start again.
+*/
 }
 
 function togglePause(){
