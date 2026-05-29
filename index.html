@@ -1362,11 +1362,17 @@ canvas{display:block;position:absolute;top:0;left:0;}
   function adminError(el,msg){ if(el) el.innerHTML=`<div style="text-align:center;padding:14px;color:#FF6B00;font-size:12px;border:1px solid rgba(255,107,0,0.3);border-radius:10px;margin:0 14px;">⚠️ ${escHtml(msg)}</div>`; }
 
   window.openAdminLogin=function(){
+    // Only allow the admin user
+    if(!currentUser || currentUser.email !== 'saifistate@gmail.com'){
+      showToast('Access denied.',true);
+      return;
+    }
+    // Skip PIN — go straight to dashboard
     document.getElementById('adminView').classList.add('open');
-    document.getElementById('aLoginWrap').style.display='flex';
-    document.getElementById('aDashWrap').style.display='none';
-    document.getElementById('al-pin').value='';
-    document.getElementById('al-err').textContent='';
+    document.getElementById('aLoginWrap').style.display='none';
+    document.getElementById('aDashWrap').style.display='flex';
+    isAdminAuth=true;
+    loadAdminDash();
   };
   window.closeAdmin=function(){
     document.getElementById('adminView').classList.remove('open');
@@ -1374,18 +1380,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
   };
 
   window.checkPin=function(){
-    const pin=document.getElementById('al-pin').value.trim();
-    const errEl=document.getElementById('al-err');
-    if(pin==='6421'){
-      errEl.textContent='';
-      document.getElementById('aLoginWrap').style.display='none';
-      document.getElementById('aDashWrap').style.display='flex';
-      isAdminAuth=true;
-      loadAdminDash();
-    } else {
-      errEl.textContent='❌ Wrong PIN';
-      document.getElementById('al-pin').value='';
-    }
+    // PIN login removed — admin access is controlled by email check
   };
 
   window.adminLogout=function(){
@@ -1405,73 +1400,31 @@ canvas{display:block;position:absolute;top:0;left:0;}
       const el=document.getElementById(id); if(el) el.textContent='...';
     });
 
-    // ── USERS ── (multi-strategy: full collection → per-UID fallback)
+    // ── USERS ──
     try {
-      let usersLoaded = false;
+      const usersSnap=await getDocs(collection(db,'users'));
+      adminUsersCache=usersSnap.docs.map(d=>({id:d.id,...d.data()}));
 
-      // Strategy 1: direct collection read (works if Firestore rules allow admin)
-      try {
-        const usersSnap = await getDocs(collection(db, 'users'));
-        adminUsersCache = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        usersLoaded = true;
-      } catch(e1) {
-        console.warn('Direct users read blocked, trying fallback:', e1.message);
+      const usersEl=document.getElementById('ad-users');
+      if(usersEl) usersEl.textContent=adminUsersCache.length;
+
+      const totalGames=adminUsersCache.reduce((s,u)=>s+(u.gamesPlayed||0),0);
+      const gamesEl=document.getElementById('ad-games');
+      if(gamesEl) gamesEl.textContent=totalGames;
+
+      renderAdminUsers();
+
+      const sel=document.getElementById('gc-user-sel');
+      if(sel){
+        const sorted=[...adminUsersCache].sort((a,b)=>(b.coins||0)-(a.coins||0));
+        sel.innerHTML='<option value="">— Select user —</option>'+sorted.map(u=>
+          `<option value="${escHtml(u.id)}">${escHtml(u.username||u.email||'Unknown')} · 🪙${(u.coins||0).toLocaleString()}</option>`
+        ).join('');
       }
-
-      // Strategy 2: collect UIDs from leaderboard (public) + withdrawalRequests,
-      // then fetch each user doc individually
-      if (!usersLoaded) {
-        const uidSet = new Set();
-        if (currentUser) uidSet.add(currentUser.uid);
-
-        try {
-          const lbSnap = await getDocs(collection(db, 'leaderboard'));
-          lbSnap.docs.forEach(d => uidSet.add(d.id));
-        } catch(e) { console.warn('leaderboard read failed', e.message); }
-
-        try {
-          const wrSnap = await getDocs(collection(db, 'withdrawalRequests'));
-          wrSnap.docs.forEach(d => {
-            const uid = d.data().uid || d.data().userDocId;
-            if (uid) uidSet.add(uid);
-          });
-        } catch(e) { console.warn('withdrawalRequests read failed', e.message); }
-
-        const fetches = await Promise.allSettled(
-          [...uidSet].map(uid => getDoc(doc(db, 'users', uid)))
-        );
-        adminUsersCache = fetches
-          .filter(r => r.status === 'fulfilled' && r.value.exists())
-          .map(r => ({ id: r.value.id, ...r.value.data() }));
-
-        if (adminUsersCache.length > 0) usersLoaded = true;
-      }
-
-      if (usersLoaded) {
-        const usersEl = document.getElementById('ad-users');
-        if (usersEl) usersEl.textContent = adminUsersCache.length;
-
-        const totalGames = adminUsersCache.reduce((s, u) => s + (u.gamesPlayed || 0), 0);
-        const gamesEl = document.getElementById('ad-games');
-        if (gamesEl) gamesEl.textContent = totalGames;
-
-        renderAdminUsers();
-
-        const sel = document.getElementById('gc-user-sel');
-        if (sel) {
-          const sorted = [...adminUsersCache].sort((a, b) => (b.coins || 0) - (a.coins || 0));
-          sel.innerHTML = '<option value="">— Select user —</option>' + sorted.map(u =>
-            `<option value="${escHtml(u.id)}">${escHtml(u.username || u.email || 'Unknown')} · \u{1FA99}${(u.coins || 0).toLocaleString()}</option>`
-          ).join('');
-        }
-      } else {
-        throw new Error('All user-loading strategies failed — update Firestore rules');
-      }
-    } catch(e) {
-      console.warn('admin users error', e);
-      adminError(document.getElementById('ad-users-list'),
-        'Cannot load users. Update Firestore rules using the guide below.');
-      ['ad-users','ad-games'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'ERR'; });
+    } catch(e){
+      console.warn('admin users error',e);
+      adminError(document.getElementById('ad-users-list'), 'Cannot load users. Check Firestore rules — see instructions below.');
+      ['ad-users','ad-games'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='ERR'; });
     }
 
     // ── WITHDRAWAL REQUESTS ──
@@ -1932,42 +1885,22 @@ canvas{display:block;position:absolute;top:0;left:0;}
       </div>
 
       <!-- Firestore Rules Help -->
-      <div class="ad-sec-head" style="margin-top:14px;">⚙️ Fix: Firestore Rules (Required for Users to Load)</div>
-      <div style="margin:0 14px 14px;padding:14px;background:rgba(255,107,0,0.08);border:1px solid rgba(255,107,0,0.35);border-radius:14px;font-size:11px;color:rgba(255,255,255,0.6);line-height:1.9;">
-        <strong style="color:#FF3366;font-size:12px;">⚠️ Users panel will fail until you do this one-time setup:</strong><br><br>
-        <strong style="color:#FFD700;">Step 1:</strong> Go to <a href="https://console.firebase.google.com" target="_blank" style="color:#00E5FF;">Firebase Console</a> → Authentication → Users → copy your <strong style="color:#fff;">UID</strong><br>
-        <strong style="color:#FFD700;">Step 2:</strong> Go to Firestore → Rules → paste the rules below → replace <code style="color:#FF6B00;">PASTE_YOUR_ADMIN_UID_HERE</code> with your UID → click Publish<br><br>
+      <div class="ad-sec-head" style="margin-top:14px;">⚙️ Firestore Rules Required</div>
+      <div style="margin:0 14px 14px;padding:14px;background:rgba(255,107,0,0.06);border:1px solid rgba(255,107,0,0.2);border-radius:14px;font-size:11px;color:rgba(255,255,255,0.5);line-height:1.8;">
+        If users/withdrawals show errors, go to <strong style="color:#FFD700;">Firebase Console → Firestore → Rules</strong> and set:<br><br>
         <code style="display:block;background:rgba(0,0,0,0.4);padding:10px;border-radius:8px;font-size:10px;color:#00E5FF;white-space:pre-wrap;">rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
-
-    // ── Admin helper ──────────────────────────────────────────
-    // Add your Firebase Auth UID here (find it in Firebase Console
-    // → Authentication → Users → copy the UID column)
-    function isAdmin() {
-      return request.auth != null &&
-        request.auth.uid in [
-          'JbTd3Im5RUeqH4gSSQrhwV6gPyG3'
-        ];
-    }
-
-    // ── Users ─────────────────────────────────────────────────
     match /users/{uid} {
-      // Users read/write their own doc; admin can read all
-      allow read: if request.auth.uid == uid || isAdmin();
-      allow write: if request.auth.uid == uid || isAdmin();
+      allow read, write: if request.auth.uid == uid;
     }
     match /users/{uid}/transactions/{tid} {
-      allow read, write: if request.auth.uid == uid || isAdmin();
+      allow read, write: if request.auth.uid == uid;
     }
-
-    // ── Withdrawal Requests ───────────────────────────────────
     match /withdrawalRequests/{id} {
       allow create: if request.auth != null;
       allow read, write: if request.auth != null;
     }
-
-    // ── Leaderboard ───────────────────────────────────────────
     match /leaderboard/{uid} {
       allow read: if true;
       allow write: if request.auth.uid == uid;
