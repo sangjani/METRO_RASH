@@ -2122,30 +2122,6 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <div class="bc-progress" id="bc-progress"></div>
       </div>
 
-      <!-- Firestore Rules Help -->
-      <div class="ad-sec-head" style="margin-top:14px;">⚙️ Firestore Rules Required</div>
-      <div style="margin:0 14px 14px;padding:14px;background:rgba(255,107,0,0.06);border:1px solid rgba(255,107,0,0.2);border-radius:14px;font-size:11px;color:rgba(255,255,255,0.5);line-height:1.8;">
-        If users/withdrawals show errors, go to <strong style="color:#FFD700;">Firebase Console → Firestore → Rules</strong> and set:<br><br>
-        <code style="display:block;background:rgba(0,0,0,0.4);padding:10px;border-radius:8px;font-size:10px;color:#00E5FF;white-space:pre-wrap;">rules_version = '2';
-service cloud.firestore {
-  match /databases/{db}/documents {
-    match /users/{uid} {
-      allow read, write: if request.auth.uid == uid;
-    }
-    match /users/{uid}/transactions/{tid} {
-      allow read, write: if request.auth.uid == uid;
-    }
-    match /withdrawalRequests/{id} {
-      allow create: if request.auth != null;
-      allow read, write: if request.auth != null;
-    }
-    match /leaderboard/{uid} {
-      allow read: if true;
-      allow write: if request.auth.uid == uid;
-    }
-  }
-}</code>
-      </div>
     </div>
   </div>
 </div>
