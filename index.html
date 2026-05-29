@@ -1428,7 +1428,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
       }
     } catch(e){
       console.warn('admin users error',e);
-      adminError(document.getElementById('ad-users-list'), 'Cannot load users. Check Firestore rules — see instructions below.');
+      adminError(document.getElementById('ad-users-list'), 'Cannot load users. Your Firestore rules do not allow admin reads. Update rules using the guide at the bottom of this panel — add the isAdmin() function and update the /users/{uid} rule to: allow read, write: if request.auth.uid == uid || isAdmin();');
       ['ad-users','ad-games'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='ERR'; });
     }
 
@@ -1890,21 +1890,27 @@ canvas{display:block;position:absolute;top:0;left:0;}
       </div>
 
       <!-- Firestore Rules Help -->
-      <div class="ad-sec-head" style="margin-top:14px;">⚙️ Firestore Rules Required</div>
+      <div class="ad-sec-head" style="margin-top:14px;">⚙️ Required Firestore Rules (Fix Users Not Loading)</div>
       <div style="margin:0 14px 14px;padding:14px;background:rgba(255,107,0,0.06);border:1px solid rgba(255,107,0,0.2);border-radius:14px;font-size:11px;color:rgba(255,255,255,0.5);line-height:1.8;">
-        If users/withdrawals show errors, go to <strong style="color:#FFD700;">Firebase Console → Firestore → Rules</strong> and set:<br><br>
+        <strong style="color:#FF3366;">⚠️ Users won't load until you update Firestore rules.</strong><br>
+        Go to <strong style="color:#FFD700;">Firebase Console → Firestore → Rules</strong> and replace with:
         <code style="display:block;background:rgba(0,0,0,0.4);padding:10px;border-radius:8px;font-size:10px;color:#00E5FF;white-space:pre-wrap;">rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
+    // Admin email check
+    function isAdmin() {
+      return request.auth != null &&
+        request.auth.token.email in ['saifistate@gmail.com'];
+    }
     match /users/{uid} {
-      allow read, write: if request.auth.uid == uid;
+      allow read, write: if request.auth.uid == uid || isAdmin();
     }
     match /users/{uid}/transactions/{tid} {
-      allow read, write: if request.auth.uid == uid;
+      allow read, write: if request.auth.uid == uid || isAdmin();
     }
     match /withdrawalRequests/{id} {
       allow create: if request.auth != null;
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null && (request.auth.uid == resource.data.uid || isAdmin());
     }
     match /leaderboard/{uid} {
       allow read: if true;
