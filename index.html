@@ -1350,64 +1350,95 @@ canvas{display:block;position:absolute;top:0;left:0;}
   function setAch(id,txt){ const el=document.getElementById(id); if(el){ el.textContent=txt; el.classList.add('done'); } }
 
   // ============================================================
-  //  ADMIN PANEL — Firebase-powered, no composite indexes needed
+  //  ADMIN PANEL
   // ============================================================
   let isAdminAuth=false;
   let adminUsersCache=[];
-  // Store pending withdrawal data keyed by doc ID (avoids onclick injection issues)
   const pendingWrData={};
+  let pendingWrUnsubscribe=null;
+
+  function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function adminLoading(el,msg){ if(el) el.innerHTML=`<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.4);font-size:13px;">⏳ ${msg||'Loading...'}</div>`; }
+  function adminError(el,msg){ if(el) el.innerHTML=`<div style="text-align:center;padding:14px;color:#FF6B00;font-size:12px;border:1px solid rgba(255,107,0,0.3);border-radius:10px;margin:0 14px;">⚠️ ${escHtml(msg)}</div>`; }
 
   window.openAdminLogin=function(){
     document.getElementById('adminView').classList.add('open');
-    document.getElementById('aLoginWrap').style.display='block';
+    document.getElementById('aLoginWrap').style.display='flex';
     document.getElementById('aDashWrap').style.display='none';
     document.getElementById('al-pin').value='';
+    document.getElementById('al-err').textContent='';
   };
-  window.closeAdmin=function(){ document.getElementById('adminView').classList.remove('open'); };
+  window.closeAdmin=function(){
+    document.getElementById('adminView').classList.remove('open');
+    if(pendingWrUnsubscribe){ pendingWrUnsubscribe(); pendingWrUnsubscribe=null; }
+  };
 
   window.checkPin=function(){
     const pin=document.getElementById('al-pin').value.trim();
+    const errEl=document.getElementById('al-err');
     if(pin==='6421'){
+      errEl.textContent='';
       document.getElementById('aLoginWrap').style.display='none';
       document.getElementById('aDashWrap').style.display='flex';
       isAdminAuth=true;
       loadAdminDash();
-      listenPendingWithdrawals();
-    } else { showToast('Wrong PIN!',true); document.getElementById('al-pin').value=''; }
+    } else {
+      errEl.textContent='❌ Wrong PIN';
+      document.getElementById('al-pin').value='';
+    }
   };
+
   window.adminLogout=function(){
     isAdminAuth=false;
     if(pendingWrUnsubscribe){ pendingWrUnsubscribe(); pendingWrUnsubscribe=null; }
-    document.getElementById('al-pin').value='';
     closeAdmin();
   };
 
+  window.adminRefresh=function(){ if(isAdminAuth) loadAdminDash(); };
+
   async function loadAdminDash(){
-    // Load all users
+    // Show loading states
+    adminLoading(document.getElementById('ad-users-list'),'Loading users...');
+    adminLoading(document.getElementById('ad-pendingList'),'Loading...');
+    adminLoading(document.getElementById('ad-processedList'),'Loading...');
+    ['ad-users','ad-pending','ad-paid','ad-games'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.textContent='...';
+    });
+
+    // ── USERS ──
     try {
       const usersSnap=await getDocs(collection(db,'users'));
-      const usersEl=document.getElementById('ad-users');
-      if(usersEl) usersEl.textContent=usersSnap.size;
       adminUsersCache=usersSnap.docs.map(d=>({id:d.id,...d.data()}));
-      renderAdminUsers();
 
-      // Total games across all users
+      const usersEl=document.getElementById('ad-users');
+      if(usersEl) usersEl.textContent=adminUsersCache.length;
+
       const totalGames=adminUsersCache.reduce((s,u)=>s+(u.gamesPlayed||0),0);
       const gamesEl=document.getElementById('ad-games');
       if(gamesEl) gamesEl.textContent=totalGames;
 
-      // Build give-coins dropdown
-      const sel=document.getElementById('gc-user-sel');
-      if(sel) sel.innerHTML=adminUsersCache.map(u=>`<option value="${u.id}">${escHtml(u.username||u.email||'User')} (${(u.coins||0).toLocaleString()} coins)</option>`).join('');
-    } catch(e){ console.warn('admin users error',e); showToast('Error loading users: '+e.message,true); }
+      renderAdminUsers();
 
-    // Load ALL withdrawal requests, filter client-side (no composite index needed)
+      const sel=document.getElementById('gc-user-sel');
+      if(sel){
+        const sorted=[...adminUsersCache].sort((a,b)=>(b.coins||0)-(a.coins||0));
+        sel.innerHTML='<option value="">— Select user —</option>'+sorted.map(u=>
+          `<option value="${escHtml(u.id)}">${escHtml(u.username||u.email||'Unknown')} · 🪙${(u.coins||0).toLocaleString()}</option>`
+        ).join('');
+      }
+    } catch(e){
+      console.warn('admin users error',e);
+      adminError(document.getElementById('ad-users-list'), 'Cannot load users. Check Firestore rules — see instructions below.');
+      ['ad-users','ad-games'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='ERR'; });
+    }
+
+    // ── WITHDRAWAL REQUESTS ──
     try {
       const wrSnap=await getDocs(collection(db,'withdrawalRequests'));
       const all=wrSnap.docs.map(d=>({id:d.id,...d.data()}));
-      const pending=all.filter(r=>r.status==='pending');
+      const pending=all.filter(r=>r.status==='pending').sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+      const processed=all.filter(r=>r.status!=='pending').sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,50);
       const approved=all.filter(r=>r.status==='approved');
-      const processed=all.filter(r=>r.status!=='pending').sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,30);
 
       const pendEl=document.getElementById('ad-pending');
       if(pendEl) pendEl.textContent=pending.length;
@@ -1416,69 +1447,112 @@ canvas{display:block;position:absolute;top:0;left:0;}
       const paidEl=document.getElementById('ad-paid');
       if(paidEl) paidEl.textContent='₹'+paid.toFixed(2);
 
-      // Render processed list
+      // Store for processWr
+      pending.forEach(r=>{ pendingWrData[r.id]=r; });
+
+      renderPendingList(pending);
       renderProcessedList(processed);
-    } catch(e){ console.warn('admin wr stats error',e); }
+
+      // Set up real-time listener for pending (replaces static render)
+      setupPendingListener();
+
+    } catch(e){
+      console.warn('admin wr error',e);
+      adminError(document.getElementById('ad-pendingList'), 'Cannot load withdrawals. Check Firestore rules.');
+      adminError(document.getElementById('ad-processedList'), 'Cannot load processed requests.');
+      ['ad-pending','ad-paid'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='ERR'; });
+    }
   }
 
-  function escHtml(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function setupPendingListener(){
+    if(pendingWrUnsubscribe){ pendingWrUnsubscribe(); }
+    const q=query(collection(db,'withdrawalRequests'),where('status','==','pending'));
+    pendingWrUnsubscribe=onSnapshot(q,(snap)=>{
+      const pending=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+      pending.forEach(r=>{ pendingWrData[r.id]=r; });
+      const pendEl=document.getElementById('ad-pending');
+      if(pendEl) pendEl.textContent=pending.length;
+      renderPendingList(pending);
+    },(err)=>{
+      console.warn('pending listener error',err);
+      // Don't show error — static load already populated it
+    });
+  }
 
   function renderAdminUsers(){
     const el=document.getElementById('ad-users-list');
     if(!el) return;
-    if(!adminUsersCache.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:13px;">No users yet</div>'; return; }
-    el.innerHTML=adminUsersCache.slice(0,30).map(u=>`
+    if(!adminUsersCache.length){
+      el.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:13px;">No users registered yet</div>';
+      return;
+    }
+    const sorted=[...adminUsersCache].sort((a,b)=>(b.totalCoins||0)-(a.totalCoins||0));
+    el.innerHTML=sorted.map(u=>`
       <div class="user-row">
-        <div>
-          <div class="user-row-email">${escHtml(u.username||'User')}</div>
-          <div class="user-row-info">${escHtml(u.email||'')}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="user-row-email" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(u.username||'Unknown')}</div>
+          <div class="user-row-info" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(u.email||u.id||'')}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:1px;">Games: ${u.gamesPlayed||0} · Best: ${(u.bestScore||0).toLocaleString()}</div>
         </div>
-        <div class="user-row-coins">🪙 ${(u.coins||0).toLocaleString()}</div>
+        <div class="user-row-coins" style="margin-left:8px;white-space:nowrap;">🪙 ${(u.coins||0).toLocaleString()}</div>
       </div>`).join('');
   }
 
-  let pendingWrUnsubscribe=null;
-  function listenPendingWithdrawals(){
-    if(pendingWrUnsubscribe) pendingWrUnsubscribe();
-    // Simple query — only filter by status, no orderBy (no composite index needed)
-    const q=query(collection(db,'withdrawalRequests'),where('status','==','pending'));
-    pendingWrUnsubscribe=onSnapshot(q,(snap)=>{
-      const pendEl=document.getElementById('ad-pending');
-      if(pendEl) pendEl.textContent=snap.size;
-      const pel=document.getElementById('ad-pendingList');
-      if(!pel) return;
-      if(!snap.size){ pel.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:13px;">No pending requests</div>'; return; }
-      // Sort client-side by timestamp desc
-      const docs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
-      // Store data for safe access from processWr
-      docs.forEach(r=>{ pendingWrData[r.id]=r; });
-      pel.innerHTML=docs.map(r=>`
-        <div class="wr-card" id="wrc-${escHtml(r.id)}">
-          <div class="wr-h"><div class="wr-user">👤 ${escHtml(r.name||r.username||'User')}</div><div class="wr-amt">₹${escHtml(String(r.rupees||0))}</div></div>
-          <div class="wr-det">📧 ${escHtml(r.email||'')}<br>📱 ${escHtml((r.method||'').toUpperCase())}: ${escHtml(r.acc||'')}<br>🪙 ${(r.coins||0).toLocaleString()} coins · 📅 ${escHtml(r.date||'')}</div>
-          <div class="wr-acts">
-            <button class="btn-app" onclick="processWr('${escHtml(r.id)}','approved')">✅ APPROVE</button>
-            <button class="btn-rej" onclick="processWr('${escHtml(r.id)}','rejected')">❌ REJECT</button>
-          </div>
-        </div>`).join('');
-    },(err)=>{ console.warn('snapshot error',err); showToast('Realtime error: '+err.message,true); });
+  function renderPendingList(pending){
+    const pel=document.getElementById('ad-pendingList');
+    if(!pel) return;
+    if(!pending.length){
+      pel.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:13px;">No pending requests 🎉</div>';
+      return;
+    }
+    pel.innerHTML=pending.map(r=>`
+      <div class="wr-card" id="wrc-${escHtml(r.id)}">
+        <div class="wr-h">
+          <div class="wr-user">👤 ${escHtml(r.name||r.username||'User')}</div>
+          <div class="wr-amt">₹${escHtml(String(r.rupees||0))}</div>
+        </div>
+        <div class="wr-det">
+          📧 ${escHtml(r.email||'')}<br>
+          📱 ${escHtml((r.method||'').toUpperCase())}: ${escHtml(r.acc||'')}<br>
+          🪙 ${(r.coins||0).toLocaleString()} coins · 📅 ${escHtml(r.date||'')}
+        </div>
+        <div class="wr-acts">
+          <button class="btn-app" onclick="processWr('${escHtml(r.id)}','approved')">✅ APPROVE</button>
+          <button class="btn-rej" onclick="processWr('${escHtml(r.id)}','rejected')">❌ REJECT</button>
+        </div>
+      </div>`).join('');
   }
 
   function renderProcessedList(processed){
     const prel=document.getElementById('ad-processedList');
     if(!prel) return;
-    if(!processed.length){ prel.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:13px;">No processed requests</div>'; return; }
+    if(!processed.length){
+      prel.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:13px;">No processed requests yet</div>';
+      return;
+    }
     prel.innerHTML=processed.map(r=>`
       <div class="wr-card">
-        <div class="wr-h"><div class="wr-user">👤 ${escHtml(r.name||r.username||'User')}</div><div class="wr-amt">₹${escHtml(String(r.rupees||0))}</div></div>
-        <div class="wr-det">📧 ${escHtml(r.email||'')}<br>📱 ${escHtml((r.method||'').toUpperCase())}: ${escHtml(r.acc||'')} · 📅 ${escHtml(r.date||'')}</div>
-        <div class="wr-done ${r.status==='approved'?'approved':'rejected'}">${r.status==='approved'?'✅ APPROVED & PAID':'❌ REJECTED'}</div>
+        <div class="wr-h">
+          <div class="wr-user">👤 ${escHtml(r.name||r.username||'User')}</div>
+          <div class="wr-amt">₹${escHtml(String(r.rupees||0))}</div>
+        </div>
+        <div class="wr-det">
+          📧 ${escHtml(r.email||'')}<br>
+          📱 ${escHtml((r.method||'').toUpperCase())}: ${escHtml(r.acc||'')} · 📅 ${escHtml(r.date||'')}
+        </div>
+        <div class="wr-done ${r.status==='approved'?'approved':'rejected'}">
+          ${r.status==='approved'?'✅ APPROVED & PAID':'❌ REJECTED'}
+        </div>
       </div>`).join('');
   }
 
   window.processWr=async function(wrId, action){
     const r=pendingWrData[wrId];
-    if(!r){ showToast('Request data not found, refresh admin panel.',true); return; }
+    if(!r){ showToast('Data not found — try refreshing.',true); return; }
+    const btn1=document.querySelector(`#wrc-${wrId} .btn-app`);
+    const btn2=document.querySelector(`#wrc-${wrId} .btn-rej`);
+    if(btn1) btn1.disabled=true;
+    if(btn2) btn2.disabled=true;
     try {
       const batch=writeBatch(db);
       batch.update(doc(db,'withdrawalRequests',wrId),{status:action,processedAt:serverTimestamp()});
@@ -1488,52 +1562,47 @@ canvas{display:block;position:absolute;top:0;left:0;}
         batch.update(doc(db,'users',userDocId,'transactions',txId),{status:action});
       }
       if(action==='rejected'&&(r.coins||0)>0&&userDocId){
-        const userRef=doc(db,'users',userDocId);
-        const uSnap=await getDoc(userRef);
-        if(uSnap.exists()){
-          const uData=uSnap.data();
-          batch.update(userRef,{coins:(uData.coins||0)+(r.coins||0)});
-        }
+        const uRef=doc(db,'users',userDocId);
+        const uSnap=await getDoc(uRef);
+        if(uSnap.exists()) batch.update(uRef,{coins:(uSnap.data().coins||0)+(r.coins||0)});
       }
       if(action==='approved'&&parseFloat(r.rupees||0)>0&&userDocId){
-        const userRef=doc(db,'users',userDocId);
-        const uSnap=await getDoc(userRef);
-        if(uSnap.exists()){
-          const uData=uSnap.data();
-          batch.update(userRef,{totalWithdrawn:(uData.totalWithdrawn||0)+parseFloat(r.rupees||0)});
-        }
+        const uRef=doc(db,'users',userDocId);
+        const uSnap=await getDoc(uRef);
+        if(uSnap.exists()) batch.update(uRef,{totalWithdrawn:(uSnap.data().totalWithdrawn||0)+parseFloat(r.rupees||0)});
       }
       await batch.commit();
       delete pendingWrData[wrId];
-      showToast(action==='approved'?'✅ Payment Approved!':'❌ Request Rejected',action!=='approved');
-      // Refresh processed list
+      showToast(action==='approved'?'✅ Approved & paid!':'❌ Rejected & coins refunded', action!=='approved');
+      // Refresh processed section
       const wrSnap=await getDocs(collection(db,'withdrawalRequests'));
-      const processed=wrSnap.docs.map(d=>({id:d.id,...d.data()})).filter(r=>r.status!=='pending').sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,30);
-      renderProcessedList(processed);
-      // Refresh stats
-      const approvedAll=wrSnap.docs.map(d=>d.data()).filter(r=>r.status==='approved');
-      const paid=approvedAll.reduce((s,r)=>s+parseFloat(r.rupees||0),0);
-      const paidEl=document.getElementById('ad-paid');
-      if(paidEl) paidEl.textContent='₹'+paid.toFixed(2);
-    } catch(e){ console.warn('processWr error',e); showToast('Error: '+e.message,true); }
+      const all=wrSnap.docs.map(d=>({id:d.id,...d.data()}));
+      renderProcessedList(all.filter(r=>r.status!=='pending').sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,50));
+      const paid=all.filter(r=>r.status==='approved').reduce((s,r)=>s+parseFloat(r.rupees||0),0);
+      const paidEl=document.getElementById('ad-paid'); if(paidEl) paidEl.textContent='₹'+paid.toFixed(2);
+    } catch(e){
+      console.warn('processWr error',e);
+      showToast('Error: '+e.message,true);
+      if(btn1) btn1.disabled=false;
+      if(btn2) btn2.disabled=false;
+    }
   };
 
   window.adminGiveCoins=async function(){
     const amt=parseInt(document.getElementById('gc-amt').value)||0;
     const selEl=document.getElementById('gc-user-sel');
     const targetUid=selEl?selEl.value:'';
-    if(amt<100){ showToast('Minimum 100!',true); return; }
-    if(!targetUid){ showToast('Select a user!',true); return; }
+    if(amt<100){ showToast('Minimum 100 coins!',true); return; }
+    if(!targetUid){ showToast('Select a user first!',true); return; }
     try {
       const ref=doc(db,'users',targetUid);
       const snap=await getDoc(ref);
       if(!snap.exists()){ showToast('User not found!',true); return; }
       const uData=snap.data();
-      await updateDoc(ref,{coins:(uData.coins||0)+amt, totalCoins:(uData.totalCoins||0)+amt, updatedAt:serverTimestamp()});
-      // If it's the current user, update local state too
+      await updateDoc(ref,{coins:(uData.coins||0)+amt,totalCoins:(uData.totalCoins||0)+amt,updatedAt:serverTimestamp()});
       if(currentUser&&targetUid===currentUser.uid){ S.coins+=amt; S.totalCoins+=amt; updateCoinUI(); }
       document.getElementById('gc-amt').value='';
-      showToast(`✅ Added ${amt.toLocaleString()} coins!`,false);
+      showToast(`✅ Added ${amt.toLocaleString()} coins to ${escHtml(uData.username||uData.email||'user')}!`,false);
       loadAdminDash();
     } catch(e){ showToast('Error: '+e.message,true); }
   };
@@ -1762,7 +1831,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
 <!-- ===== ADMIN VIEW ===== -->
 <div id="adminView">
   <!-- Login -->
-  <div id="aLoginWrap">
+  <div id="aLoginWrap" style="display:flex;flex-direction:column;">
     <div class="av-header">
       <div>🛡️</div>
       <div class="av-title">ADMIN</div>
@@ -1774,19 +1843,21 @@ canvas{display:block;position:absolute;top:0;left:0;}
       <p>Enter PIN to access the control panel</p>
       <input type="password" class="al-pin" id="al-pin" placeholder="••••" maxlength="6" onkeydown="if(event.key==='Enter')checkPin()">
       <button class="al-btn" onclick="checkPin()">ENTER</button>
+      <div id="al-err" style="color:#FF3366;font-size:13px;font-weight:700;min-height:20px;margin-top:4px;"></div>
     </div>
   </div>
   <!-- Dashboard -->
-  <div id="aDashWrap" style="display:none;flex-direction:column;">
+  <div id="aDashWrap" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
     <div class="av-header">
       <div>🛡️</div>
-      <div>
+      <div style="flex:1;">
         <div class="av-title">ADMIN PANEL</div>
         <span class="av-badge">SUPER ADMIN</span>
       </div>
+      <button onclick="adminRefresh()" style="background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);color:#FFD700;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:8px;">🔄 Refresh</button>
       <button class="av-back" onclick="adminLogout()">✕</button>
     </div>
-    <div style="overflow-y:auto;flex:1;padding-bottom:20px;">
+    <div style="overflow-y:auto;flex:1;padding-bottom:30px;">
       <!-- Stats -->
       <div class="ad-stats">
         <div class="ad-stat"><div class="ad-sv" id="ad-users">—</div><div class="ad-sl">Total Users</div></div>
@@ -1797,7 +1868,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
 
       <!-- Users List -->
       <div class="ad-sec-head">👥 Registered Users</div>
-      <div id="ad-users-list" class="ad-users-list" style="max-height:180px;overflow-y:auto;"></div>
+      <div id="ad-users-list" class="ad-users-list" style="max-height:300px;overflow-y:auto;padding:0 14px;margin-bottom:6px;"></div>
 
       <!-- Pending Withdrawals -->
       <div class="ad-sec-head" style="margin-top:14px;">⏳ Pending Withdrawals</div>
@@ -1811,11 +1882,36 @@ canvas{display:block;position:absolute;top:0;left:0;}
       <div class="ad-sec-head">🎁 Give Coins to User</div>
       <div class="gc-card">
         <label style="font-size:11px;color:rgba(255,255,255,0.4);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Select User</label>
-        <div class="user-selector-wrap">
+        <div class="user-selector-wrap" style="margin:0 0 10px;">
           <select class="user-selector" id="gc-user-sel"></select>
         </div>
-        <input type="number" class="gc-inp" id="gc-amt" placeholder="Coin amount (min 100)" style="margin-top:10px;">
+        <input type="number" class="gc-inp" id="gc-amt" placeholder="Coin amount (min 100)">
         <button class="gc-btn" onclick="adminGiveCoins()">➕ ADD COINS</button>
+      </div>
+
+      <!-- Firestore Rules Help -->
+      <div class="ad-sec-head" style="margin-top:14px;">⚙️ Firestore Rules Required</div>
+      <div style="margin:0 14px 14px;padding:14px;background:rgba(255,107,0,0.06);border:1px solid rgba(255,107,0,0.2);border-radius:14px;font-size:11px;color:rgba(255,255,255,0.5);line-height:1.8;">
+        If users/withdrawals show errors, go to <strong style="color:#FFD700;">Firebase Console → Firestore → Rules</strong> and set:<br><br>
+        <code style="display:block;background:rgba(0,0,0,0.4);padding:10px;border-radius:8px;font-size:10px;color:#00E5FF;white-space:pre-wrap;">rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /users/{uid} {
+      allow read, write: if request.auth.uid == uid;
+    }
+    match /users/{uid}/transactions/{tid} {
+      allow read, write: if request.auth.uid == uid;
+    }
+    match /withdrawalRequests/{id} {
+      allow create: if request.auth != null;
+      allow read, write: if request.auth != null;
+    }
+    match /leaderboard/{uid} {
+      allow read: if true;
+      allow write: if request.auth.uid == uid;
+    }
+  }
+}</code>
       </div>
     </div>
   </div>
