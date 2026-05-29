@@ -779,12 +779,12 @@ canvas{display:block;position:absolute;top:0;left:0;}
     document.getElementById('homeScreen').classList.remove('hidden');
     document.getElementById('homeUserTag').textContent = `👤 ${S.username || currentUser.email}`;
     updateCoinUI();
-    // Show admin buttons only for the admin account
+    // Show admin buttons ONLY for the admin account
     const _isAdmin = currentUser && currentUser.email === 'saifistate@gmail.com';
-    const _navBtn = document.getElementById('adminNavBtn');
-    const _menuBtn = document.getElementById('adminMenuBtn');
-    if(_navBtn)  _navBtn.style.display  = _isAdmin ? '' : 'none';
-    if(_menuBtn) _menuBtn.style.display = _isAdmin ? '' : 'none';
+    const _nb = document.getElementById('adminNavBtn');
+    const _mb = document.getElementById('adminMenuBtn');
+    if (_nb)  _nb.style.display  = _isAdmin ? '' : 'none';
+    if (_mb) _mb.style.display = _isAdmin ? '' : 'none';
     // Draw idle
     running=false; initGame(); render(); running=false;
   }
@@ -842,7 +842,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
     playerLane=1; targetLane=1;
     groundY=H*GROUND_Y_FRAC; playerY=groundY;
     jumping=false; rolling=false; jumpVY=0;
-    lives=3; gameSpeed=2.0;
+    lives=3; gameSpeed=1.2;
     currentMult=1; multTimer=0;
     magnet=false; magnetTimer=0;
     board=false; boardTimer=0;
@@ -932,7 +932,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
   }
 
   function update(){
-    gameSpeed=2.0+score/2200;
+    gameSpeed=1.2+score/4000;
     if(boost) gameSpeed*=1.7;
     distance+=gameSpeed*0.05;
     score+=boost?2:1;
@@ -1372,7 +1372,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
       showToast('Access denied.',true);
       return;
     }
-    // Admin verified by email — skip PIN, go straight to dashboard
+    // Admin verified by email — skip PIN entirely
     document.getElementById('adminView').classList.add('open');
     document.getElementById('aLoginWrap').style.display='none';
     document.getElementById('aDashWrap').style.display='flex';
@@ -1407,62 +1407,28 @@ canvas{display:block;position:absolute;top:0;left:0;}
 
     // ── USERS ──
     try {
-      let usersLoaded = false;
+      const usersSnap=await getDocs(collection(db,'users'));
+      adminUsersCache=usersSnap.docs.map(d=>({id:d.id,...d.data()}));
 
-      // Strategy 1: read full users collection (requires updated Firestore rules)
-      try {
-        const usersSnap = await getDocs(collection(db,'users'));
-        adminUsersCache = usersSnap.docs.map(d=>({id:d.id,...d.data()}));
-        usersLoaded = true;
-      } catch(e1){
-        console.warn('Full users collection blocked, trying fallback:', e1.message);
-      }
+      const usersEl=document.getElementById('ad-users');
+      if(usersEl) usersEl.textContent=adminUsersCache.length;
 
-      // Strategy 2: collect UIDs from leaderboard (public) + withdrawalRequests,
-      // then fetch each user doc individually
-      if(!usersLoaded){
-        const uidSet = new Set();
-        if(currentUser) uidSet.add(currentUser.uid);
-        try {
-          const lbSnap = await getDocs(collection(db,'leaderboard'));
-          lbSnap.docs.forEach(d => uidSet.add(d.id));
-        } catch(e){}
-        try {
-          const wrSnap = await getDocs(collection(db,'withdrawalRequests'));
-          wrSnap.docs.forEach(d => {
-            const uid = d.data().uid || d.data().userDocId;
-            if(uid) uidSet.add(uid);
-          });
-        } catch(e){}
-        const fetches = await Promise.allSettled(
-          [...uidSet].map(uid => getDoc(doc(db,'users',uid)))
-        );
-        adminUsersCache = fetches
-          .filter(r => r.status==='fulfilled' && r.value.exists())
-          .map(r => ({id:r.value.id,...r.value.data()}));
-        if(adminUsersCache.length > 0) usersLoaded = true;
-      }
+      const totalGames=adminUsersCache.reduce((s,u)=>s+(u.gamesPlayed||0),0);
+      const gamesEl=document.getElementById('ad-games');
+      if(gamesEl) gamesEl.textContent=totalGames;
 
-      if(usersLoaded){
-        const usersEl = document.getElementById('ad-users');
-        if(usersEl) usersEl.textContent = adminUsersCache.length;
-        const totalGames = adminUsersCache.reduce((s,u)=>s+(u.gamesPlayed||0),0);
-        const gamesEl = document.getElementById('ad-games');
-        if(gamesEl) gamesEl.textContent = totalGames;
-        renderAdminUsers();
-        const sel = document.getElementById('gc-user-sel');
-        if(sel){
-          const sorted = [...adminUsersCache].sort((a,b)=>(b.coins||0)-(a.coins||0));
-          sel.innerHTML = '<option value="">— Select user —</option>'+sorted.map(u=>
-            `<option value="${escHtml(u.id)}">${escHtml(u.username||u.email||'Unknown')} · 🪙${(u.coins||0).toLocaleString()}</option>`
-          ).join('');
-        }
-      } else {
-        throw new Error('Could not load users — update Firestore rules (see guide below)');
+      renderAdminUsers();
+
+      const sel=document.getElementById('gc-user-sel');
+      if(sel){
+        const sorted=[...adminUsersCache].sort((a,b)=>(b.coins||0)-(a.coins||0));
+        sel.innerHTML='<option value="">— Select user —</option>'+sorted.map(u=>
+          `<option value="${escHtml(u.id)}">${escHtml(u.username||u.email||'Unknown')} · 🪙${(u.coins||0).toLocaleString()}</option>`
+        ).join('');
       }
     } catch(e){
       console.warn('admin users error',e);
-      adminError(document.getElementById('ad-users-list'), e.message || 'Cannot load users. Update Firestore rules — see guide below.');
+      adminError(document.getElementById('ad-users-list'), 'Cannot load users. Check Firestore rules — see instructions below.');
       ['ad-users','ad-games'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='ERR'; });
     }
 
@@ -1930,18 +1896,11 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <code style="display:block;background:rgba(0,0,0,0.4);padding:10px;border-radius:8px;font-size:10px;color:#00E5FF;white-space:pre-wrap;">rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
-
-    // Paste your Firebase Auth UID below (Firebase Console → Auth → Users → UID column)
-    function isAdmin() {
-      return request.auth != null &&
-        request.auth.uid in ['PASTE_YOUR_FIREBASE_UID_HERE'];
-    }
-
     match /users/{uid} {
-      allow read, write: if request.auth.uid == uid || isAdmin();
+      allow read, write: if request.auth.uid == uid;
     }
     match /users/{uid}/transactions/{tid} {
-      allow read, write: if request.auth.uid == uid || isAdmin();
+      allow read, write: if request.auth.uid == uid;
     }
     match /withdrawalRequests/{id} {
       allow create: if request.auth != null;
