@@ -605,7 +605,22 @@ canvas{display:block;position:absolute;top:0;left:0;}
   // ============================================================
   //  AUTH STATE LISTENER
   // ============================================================
+  // If Firebase doesn't respond within 8s, show a real connection error
+  let fbResolved = false;
+  const fbTimeout = setTimeout(() => {
+    if (!fbResolved) {
+      const el = document.getElementById('fbStatus');
+      if (el) {
+        el.textContent = '❌ Cannot reach Firebase';
+        el.className = 'offline';
+        el.style.display = 'block';
+      }
+    }
+  }, 8000);
+
   onAuthStateChanged(auth, async (user) => {
+    fbResolved = true;
+    clearTimeout(fbTimeout);
     if (user) {
       currentUser = user;
       await loadUserData(user.uid);
@@ -622,8 +637,13 @@ canvas{display:block;position:absolute;top:0;left:0;}
   function setFbStatus(online){
     const el = document.getElementById('fbStatus');
     if(!el) return;
-    el.textContent = online ? '🔥 Firebase Live' : '⚡ Offline Mode';
-    el.className = online ? 'online' : 'offline';
+    if(online){
+      el.textContent = '🔥 Firebase Live';
+      el.className = 'online';
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
   }
 
   // ============================================================
