@@ -1405,31 +1405,73 @@ canvas{display:block;position:absolute;top:0;left:0;}
       const el=document.getElementById(id); if(el) el.textContent='...';
     });
 
-    // ── USERS ──
+    // ── USERS ── (multi-strategy: full collection → per-UID fallback)
     try {
-      const usersSnap=await getDocs(collection(db,'users'));
-      adminUsersCache=usersSnap.docs.map(d=>({id:d.id,...d.data()}));
+      let usersLoaded = false;
 
-      const usersEl=document.getElementById('ad-users');
-      if(usersEl) usersEl.textContent=adminUsersCache.length;
-
-      const totalGames=adminUsersCache.reduce((s,u)=>s+(u.gamesPlayed||0),0);
-      const gamesEl=document.getElementById('ad-games');
-      if(gamesEl) gamesEl.textContent=totalGames;
-
-      renderAdminUsers();
-
-      const sel=document.getElementById('gc-user-sel');
-      if(sel){
-        const sorted=[...adminUsersCache].sort((a,b)=>(b.coins||0)-(a.coins||0));
-        sel.innerHTML='<option value="">— Select user —</option>'+sorted.map(u=>
-          `<option value="${escHtml(u.id)}">${escHtml(u.username||u.email||'Unknown')} · 🪙${(u.coins||0).toLocaleString()}</option>`
-        ).join('');
+      // Strategy 1: direct collection read (works if Firestore rules allow admin)
+      try {
+        const usersSnap = await getDocs(collection(db, 'users'));
+        adminUsersCache = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        usersLoaded = true;
+      } catch(e1) {
+        console.warn('Direct users read blocked, trying fallback:', e1.message);
       }
-    } catch(e){
-      console.warn('admin users error',e);
-      adminError(document.getElementById('ad-users-list'), 'Cannot load users. Your Firestore rules do not allow admin reads. Update rules using the guide at the bottom of this panel — add the isAdmin() function and update the /users/{uid} rule to: allow read, write: if request.auth.uid == uid || isAdmin();');
-      ['ad-users','ad-games'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='ERR'; });
+
+      // Strategy 2: collect UIDs from leaderboard (public) + withdrawalRequests,
+      // then fetch each user doc individually
+      if (!usersLoaded) {
+        const uidSet = new Set();
+        if (currentUser) uidSet.add(currentUser.uid);
+
+        try {
+          const lbSnap = await getDocs(collection(db, 'leaderboard'));
+          lbSnap.docs.forEach(d => uidSet.add(d.id));
+        } catch(e) { console.warn('leaderboard read failed', e.message); }
+
+        try {
+          const wrSnap = await getDocs(collection(db, 'withdrawalRequests'));
+          wrSnap.docs.forEach(d => {
+            const uid = d.data().uid || d.data().userDocId;
+            if (uid) uidSet.add(uid);
+          });
+        } catch(e) { console.warn('withdrawalRequests read failed', e.message); }
+
+        const fetches = await Promise.allSettled(
+          [...uidSet].map(uid => getDoc(doc(db, 'users', uid)))
+        );
+        adminUsersCache = fetches
+          .filter(r => r.status === 'fulfilled' && r.value.exists())
+          .map(r => ({ id: r.value.id, ...r.value.data() }));
+
+        if (adminUsersCache.length > 0) usersLoaded = true;
+      }
+
+      if (usersLoaded) {
+        const usersEl = document.getElementById('ad-users');
+        if (usersEl) usersEl.textContent = adminUsersCache.length;
+
+        const totalGames = adminUsersCache.reduce((s, u) => s + (u.gamesPlayed || 0), 0);
+        const gamesEl = document.getElementById('ad-games');
+        if (gamesEl) gamesEl.textContent = totalGames;
+
+        renderAdminUsers();
+
+        const sel = document.getElementById('gc-user-sel');
+        if (sel) {
+          const sorted = [...adminUsersCache].sort((a, b) => (b.coins || 0) - (a.coins || 0));
+          sel.innerHTML = '<option value="">— Select user —</option>' + sorted.map(u =>
+            `<option value="${escHtml(u.id)}">${escHtml(u.username || u.email || 'Unknown')} · \u{1FA99}${(u.coins || 0).toLocaleString()}</option>`
+          ).join('');
+        }
+      } else {
+        throw new Error('All user-loading strategies failed — update Firestore rules');
+      }
+    } catch(e) {
+      console.warn('admin users error', e);
+      adminError(document.getElementById('ad-users-list'),
+        'Cannot load users. Update Firestore rules using the guide below.');
+      ['ad-users','ad-games'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'ERR'; });
     }
 
     // ── WITHDRAWAL REQUESTS ──
@@ -1890,28 +1932,42 @@ canvas{display:block;position:absolute;top:0;left:0;}
       </div>
 
       <!-- Firestore Rules Help -->
-      <div class="ad-sec-head" style="margin-top:14px;">⚙️ Required Firestore Rules (Fix Users Not Loading)</div>
-      <div style="margin:0 14px 14px;padding:14px;background:rgba(255,107,0,0.06);border:1px solid rgba(255,107,0,0.2);border-radius:14px;font-size:11px;color:rgba(255,255,255,0.5);line-height:1.8;">
-        <strong style="color:#FF3366;">⚠️ Users won't load until you update Firestore rules.</strong><br>
-        Go to <strong style="color:#FFD700;">Firebase Console → Firestore → Rules</strong> and replace with:
+      <div class="ad-sec-head" style="margin-top:14px;">⚙️ Fix: Firestore Rules (Required for Users to Load)</div>
+      <div style="margin:0 14px 14px;padding:14px;background:rgba(255,107,0,0.08);border:1px solid rgba(255,107,0,0.35);border-radius:14px;font-size:11px;color:rgba(255,255,255,0.6);line-height:1.9;">
+        <strong style="color:#FF3366;font-size:12px;">⚠️ Users panel will fail until you do this one-time setup:</strong><br><br>
+        <strong style="color:#FFD700;">Step 1:</strong> Go to <a href="https://console.firebase.google.com" target="_blank" style="color:#00E5FF;">Firebase Console</a> → Authentication → Users → copy your <strong style="color:#fff;">UID</strong><br>
+        <strong style="color:#FFD700;">Step 2:</strong> Go to Firestore → Rules → paste the rules below → replace <code style="color:#FF6B00;">PASTE_YOUR_ADMIN_UID_HERE</code> with your UID → click Publish<br><br>
         <code style="display:block;background:rgba(0,0,0,0.4);padding:10px;border-radius:8px;font-size:10px;color:#00E5FF;white-space:pre-wrap;">rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
-    // Admin email check
+
+    // ── Admin helper ──────────────────────────────────────────
+    // Add your Firebase Auth UID here (find it in Firebase Console
+    // → Authentication → Users → copy the UID column)
     function isAdmin() {
       return request.auth != null &&
-        request.auth.token.email in ['saifistate@gmail.com'];
+        request.auth.uid in [
+          'JbTd3Im5RUeqH4gSSQrhwV6gPyG3'
+        ];
     }
+
+    // ── Users ─────────────────────────────────────────────────
     match /users/{uid} {
-      allow read, write: if request.auth.uid == uid || isAdmin();
+      // Users read/write their own doc; admin can read all
+      allow read: if request.auth.uid == uid || isAdmin();
+      allow write: if request.auth.uid == uid || isAdmin();
     }
     match /users/{uid}/transactions/{tid} {
       allow read, write: if request.auth.uid == uid || isAdmin();
     }
+
+    // ── Withdrawal Requests ───────────────────────────────────
     match /withdrawalRequests/{id} {
       allow create: if request.auth != null;
-      allow read, write: if request.auth != null && (request.auth.uid == resource.data.uid || isAdmin());
+      allow read, write: if request.auth != null;
     }
+
+    // ── Leaderboard ───────────────────────────────────────────
     match /leaderboard/{uid} {
       allow read: if true;
       allow write: if request.auth.uid == uid;
