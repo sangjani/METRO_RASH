@@ -175,73 +175,6 @@ canvas{display:block;position:absolute;top:0;left:0;}
   font-size:11px;font-weight:700;cursor:pointer;pointer-events:all;
 }
 
-
-/* ===== ADMIN-ONLY: hidden by default, shown via JS for admin email only ===== */
-.admin-only { display: none !important; }
-.admin-only.admin-visible { display: flex !important; }
-
-/* ===== BROADCAST REWARD MODULE ===== */
-.bc-card{margin:0 14px 14px;background:rgba(255,215,0,0.03);border:1px solid rgba(255,215,0,0.15);border-radius:14px;padding:16px;}
-.bc-desc{font-size:11px;color:rgba(255,255,255,0.35);margin-bottom:12px;line-height:1.7;}
-.bc-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
-.bc-inp{flex:1;min-width:100px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:10px 12px;color:#fff;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;outline:none;}
-.bc-inp:focus{border-color:var(--primary);}
-.bc-btn{background:linear-gradient(135deg,#FFD700,#FF6B00);color:#000;border:none;border-radius:10px;padding:10px 18px;font-family:'Bangers',cursive;font-size:16px;letter-spacing:1px;cursor:pointer;white-space:nowrap;}
-.bc-progress{margin-top:8px;font-size:11px;color:rgba(255,255,255,0.4);text-align:center;min-height:16px;}
-
-/* ===== DAILY CHECK-IN POPUP ===== */
-#checkinPopup{
-  position:fixed;inset:0;z-index:300;display:none;
-  align-items:center;justify-content:center;
-  background:rgba(0,0,0,0.82);backdrop-filter:blur(10px);
-  padding:20px;
-}
-#checkinPopup.open{display:flex;}
-.ci-box{
-  background:linear-gradient(160deg,#1a0a4e,#2d0b6e,#1a0533);
-  border:1px solid rgba(255,215,0,0.3);border-radius:24px;
-  padding:28px 22px;width:100%;max-width:340px;text-align:center;
-  box-shadow:0 0 60px rgba(255,215,0,0.15);position:relative;
-}
-.ci-title{font-family:'Bangers',cursive;font-size:30px;letter-spacing:2px;
-  background:linear-gradient(135deg,#FFD700,#FF6B00);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
-.ci-sub{font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:20px;letter-spacing:1px;}
-.ci-days{display:flex;gap:6px;justify-content:center;margin-bottom:20px;flex-wrap:wrap;}
-.ci-day{
-  width:40px;height:56px;border-radius:12px;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:3px;
-  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
-  font-size:9px;color:rgba(255,255,255,0.4);font-weight:700;letter-spacing:0.5px;
-  text-transform:uppercase;transition:all 0.2s;
-}
-.ci-day .ci-coins{font-family:'Bangers',cursive;font-size:13px;color:rgba(255,255,255,0.4);}
-.ci-day.claimed{background:rgba(0,255,136,0.1);border-color:rgba(0,255,136,0.3);}
-.ci-day.claimed .ci-coins{color:var(--success);}
-.ci-day.today{background:rgba(255,215,0,0.15);border-color:rgba(255,215,0,0.5);
-  box-shadow:0 0 14px rgba(255,215,0,0.25);transform:scale(1.08);}
-.ci-day.today .ci-coins{color:var(--primary);}
-.ci-day.future{opacity:0.4;}
-.ci-reward{font-family:'Bangers',cursive;font-size:42px;color:var(--primary);
-  margin-bottom:4px;text-shadow:0 0 20px rgba(255,215,0,0.5);}
-.ci-reward-label{font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:20px;}
-.ci-btn{
-  width:100%;background:linear-gradient(135deg,#FFD700,#FF6B00);
-  color:#000;border:none;border-radius:14px;padding:14px;
-  font-family:'Bangers',cursive;font-size:22px;letter-spacing:2px;cursor:pointer;
-  box-shadow:0 4px 20px rgba(255,107,0,0.4);transition:transform 0.15s;margin-bottom:10px;
-}
-.ci-btn:active{transform:scale(0.97);}
-.ci-btn:disabled{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.3);
-  box-shadow:none;cursor:default;}
-.ci-skip{font-size:12px;color:rgba(255,255,255,0.25);cursor:pointer;
-  text-decoration:underline;padding:4px 8px;}
-.ci-streak-info{
-  display:inline-flex;align-items:center;gap:6px;margin-bottom:16px;
-  background:rgba(255,107,0,0.1);border:1px solid rgba(255,107,0,0.25);
-  border-radius:20px;padding:5px 14px;font-size:12px;color:#FF6B00;font-weight:700;
-}
-
 /* GAME OVER */
 #gameoverScreen{background:rgba(0,0,0,0.85);}
 .go-title{font-family:'Bangers',cursive;font-size:52px;color:var(--danger);letter-spacing:2px;margin-bottom:6px;}
@@ -625,7 +558,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
 .lb-name{font-size:13px;font-weight:700;flex:1;}
 .lb-score{font-family:'Bangers',cursive;font-size:18px;color:var(--accent);}
 </style>
-<script src='//libtl.com/sdk.js' data-zone='11069622' data-sdk='show_11069622'></script>
+<!-- Ad SDK is loaded dynamically on game end only -->
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -661,7 +594,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
     return {
       coins:0, totalCoins:0, bestScore:0, gamesPlayed:0,
       totalWithdrawn:0, transactions:[], withdrawalRequests:[],
-      streak:1, lastPlayed:null, lastCheckin:null, boardUses:0, distanceM:0,
+      streak:1, lastPlayed:null, boardUses:0, distanceM:0,
       username:'Metro Runner'
     };
   }
@@ -843,14 +776,6 @@ canvas{display:block;position:absolute;top:0;left:0;}
     document.getElementById('homeScreen').classList.remove('hidden');
     document.getElementById('homeUserTag').textContent = `👤 ${S.username || currentUser.email}`;
     updateCoinUI();
-    // Show admin elements ONLY for saifistate@gmail.com
-    const _isAdmin = currentUser && currentUser.email === 'saifistate@gmail.com';
-    document.querySelectorAll('.admin-only').forEach(function(el){
-      if(_isAdmin) el.classList.add('admin-visible');
-      else el.classList.remove('admin-visible');
-    });
-    // Trigger daily check-in popup
-    setTimeout(checkDailyCheckIn, 800);
     // Draw idle
     running=false; initGame(); render(); running=false;
   }
@@ -908,7 +833,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
     playerLane=1; targetLane=1;
     groundY=H*GROUND_Y_FRAC; playerY=groundY;
     jumping=false; rolling=false; jumpVY=0;
-    lives=3; gameSpeed=0.85;
+    lives=3; gameSpeed=2.0;
     currentMult=1; multTimer=0;
     magnet=false; magnetTimer=0;
     board=false; boardTimer=0;
@@ -960,7 +885,44 @@ canvas{display:block;position:absolute;top:0;left:0;}
     document.getElementById('gameoverScreen').classList.remove('hidden');
     checkAchs();
     if(navigator.vibrate) navigator.vibrate([100,50,100]);
-    try{ show_11069622({type:'inApp',inAppSettings:{frequency:60,capping:0.1,interval:30,timeout:5,everyPage:false}}); }catch(e){}
+    showAdOnGameEnd();
+  }
+
+  // ============================================================
+  //  AD — loaded once, called only when game ends
+  // ============================================================
+  let adSdkLoaded = false;
+  let adSdkLoading = false;
+  const adSdkCallbacks = [];
+
+  function loadAdSdk(callback){
+    if(adSdkLoaded){ callback(); return; }
+    adSdkCallbacks.push(callback);
+    if(adSdkLoading) return;
+    adSdkLoading = true;
+    const s = document.createElement('script');
+    s.src = '//libtl.com/sdk.js';
+    s.setAttribute('data-zone','11069622');
+    s.setAttribute('data-sdk','show_11069622');
+    s.onload = function(){
+      adSdkLoaded = true;
+      adSdkLoading = false;
+      adSdkCallbacks.forEach(cb => { try{ cb(); }catch(e){} });
+      adSdkCallbacks.length = 0;
+    };
+    s.onerror = function(){
+      adSdkLoading = false;
+      adSdkCallbacks.length = 0;
+    };
+    document.head.appendChild(s);
+  }
+
+  function showAdOnGameEnd(){
+    loadAdSdk(function(){
+      try{
+        show_11069622({type:'inApp',inAppSettings:{frequency:1,capping:1,interval:0,timeout:5,everyPage:true}});
+      }catch(e){}
+    });
   }
 
   async function updateLeaderboard(score){
@@ -998,7 +960,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
   }
 
   function update(){
-    gameSpeed=0.85+score/5800;
+    gameSpeed=2.0+score/2200;
     if(boost) gameSpeed*=1.7;
     distance+=gameSpeed*0.05;
     score+=boost?2:1;
@@ -1434,21 +1396,31 @@ canvas{display:block;position:absolute;top:0;left:0;}
   function adminError(el,msg){ if(el) el.innerHTML=`<div style="text-align:center;padding:14px;color:#FF6B00;font-size:12px;border:1px solid rgba(255,107,0,0.3);border-radius:10px;margin:0 14px;">⚠️ ${escHtml(msg)}</div>`; }
 
   window.openAdminLogin=function(){
-    if(!currentUser || currentUser.email !== 'saifistate@gmail.com'){
-      showToast('Access denied.',true); return;
-    }
     document.getElementById('adminView').classList.add('open');
-    document.getElementById('aLoginWrap').style.display='none';
-    document.getElementById('aDashWrap').style.display='flex';
-    isAdminAuth=true;
-    loadAdminDash();
+    document.getElementById('aLoginWrap').style.display='flex';
+    document.getElementById('aDashWrap').style.display='none';
+    document.getElementById('al-pin').value='';
+    document.getElementById('al-err').textContent='';
   };
   window.closeAdmin=function(){
     document.getElementById('adminView').classList.remove('open');
     if(pendingWrUnsubscribe){ pendingWrUnsubscribe(); pendingWrUnsubscribe=null; }
   };
 
-  window.checkPin=function(){ /* PIN removed — access controlled by email */ };
+  window.checkPin=function(){
+    const pin=document.getElementById('al-pin').value.trim();
+    const errEl=document.getElementById('al-err');
+    if(pin==='6421'){
+      errEl.textContent='';
+      document.getElementById('aLoginWrap').style.display='none';
+      document.getElementById('aDashWrap').style.display='flex';
+      isAdminAuth=true;
+      loadAdminDash();
+    } else {
+      errEl.textContent='❌ Wrong PIN';
+      document.getElementById('al-pin').value='';
+    }
+  };
 
   window.adminLogout=function(){
     isAdminAuth=false;
@@ -1469,39 +1441,28 @@ canvas{display:block;position:absolute;top:0;left:0;}
 
     // ── USERS ──
     try {
-      let usersLoaded=false;
-      try {
-        const usersSnap=await getDocs(collection(db,'users'));
-        adminUsersCache=usersSnap.docs.map(d=>({id:d.id,...d.data()}));
-        usersLoaded=true;
-      } catch(e1){ console.warn('Full users read blocked, fallback:', e1.message); }
-      if(!usersLoaded){
-        const uidSet=new Set();
-        if(currentUser) uidSet.add(currentUser.uid);
-        try{ const lb=await getDocs(collection(db,'leaderboard')); lb.docs.forEach(d=>uidSet.add(d.id)); }catch(e){}
-        try{ const wr=await getDocs(collection(db,'withdrawalRequests')); wr.docs.forEach(d=>{ const u=d.data().uid||d.data().userDocId; if(u) uidSet.add(u); }); }catch(e){}
-        const fetches=await Promise.allSettled([...uidSet].map(uid=>getDoc(doc(db,'users',uid))));
-        adminUsersCache=fetches.filter(r=>r.status==='fulfilled'&&r.value.exists()).map(r=>({id:r.value.id,...r.value.data()}));
-        if(adminUsersCache.length>0) usersLoaded=true;
+      const usersSnap=await getDocs(collection(db,'users'));
+      adminUsersCache=usersSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+      const usersEl=document.getElementById('ad-users');
+      if(usersEl) usersEl.textContent=adminUsersCache.length;
+
+      const totalGames=adminUsersCache.reduce((s,u)=>s+(u.gamesPlayed||0),0);
+      const gamesEl=document.getElementById('ad-games');
+      if(gamesEl) gamesEl.textContent=totalGames;
+
+      renderAdminUsers();
+
+      const sel=document.getElementById('gc-user-sel');
+      if(sel){
+        const sorted=[...adminUsersCache].sort((a,b)=>(b.coins||0)-(a.coins||0));
+        sel.innerHTML='<option value="">— Select user —</option>'+sorted.map(u=>
+          `<option value="${escHtml(u.id)}">${escHtml(u.username||u.email||'Unknown')} · 🪙${(u.coins||0).toLocaleString()}</option>`
+        ).join('');
       }
-      if(usersLoaded){
-        const usersEl=document.getElementById('ad-users');
-        if(usersEl) usersEl.textContent=adminUsersCache.length;
-        const totalGames=adminUsersCache.reduce((s,u)=>s+(u.gamesPlayed||0),0);
-        const gamesEl=document.getElementById('ad-games');
-        if(gamesEl) gamesEl.textContent=totalGames;
-        renderAdminUsers();
-        const sel=document.getElementById('gc-user-sel');
-        if(sel){
-          const sorted=[...adminUsersCache].sort((a,b)=>(b.coins||0)-(a.coins||0));
-          sel.innerHTML='<option value="">— Select user —</option>'+sorted.map(u=>
-            `<option value="${escHtml(u.id)}">${escHtml(u.username||u.email||'Unknown')} · 🪙${(u.coins||0).toLocaleString()}</option>`
-          ).join('');
-        }
-      } else { throw new Error('Could not load users — update Firestore rules (see guide below)'); }
     } catch(e){
       console.warn('admin users error',e);
-      adminError(document.getElementById('ad-users-list'), e.message||'Cannot load users. Update Firestore rules — see guide below.');
+      adminError(document.getElementById('ad-users-list'), 'Cannot load users. Check Firestore rules — see instructions below.');
       ['ad-users','ad-games'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='ERR'; });
     }
 
@@ -1680,154 +1641,6 @@ canvas{display:block;position:absolute;top:0;left:0;}
     } catch(e){ showToast('Error: '+e.message,true); }
   };
 
-
-  // ============================================================
-  //  BROADCAST REWARD COINS (Admin → All Users)
-  // ============================================================
-  window.adminBroadcastCoins = async function(){
-    const amt = parseInt(document.getElementById('bc-amt').value)||0;
-    const reason = document.getElementById('bc-reason').value.trim();
-    if(amt < 10){ showToast('Minimum 10 coins to broadcast!', true); return; }
-    const progEl = document.getElementById('bc-progress');
-    const btn = document.getElementById('bc-btn');
-    if(!adminUsersCache.length){ showToast('Load users first (click Refresh)', true); return; }
-    btn.disabled = true;
-    progEl.textContent = `⏳ Sending to 0 / ${adminUsersCache.length} users...`;
-    let done = 0, failed = 0;
-    for(const u of adminUsersCache){
-      try {
-        const ref = doc(db,'users',u.id);
-        const snap = await getDoc(ref);
-        if(snap.exists()){
-          const d = snap.data();
-          await updateDoc(ref,{
-            coins:(d.coins||0)+amt,
-            totalCoins:(d.totalCoins||0)+amt,
-            updatedAt:serverTimestamp()
-          });
-          // also add a transaction record
-          await addDoc(collection(db,'users',u.id,'transactions'),{
-            uid:u.id, email:u.email||'',
-            username:u.username||'Player',
-            coins:amt, rupees:'0.00',
-            method:'reward', acc:'Admin Broadcast',
-            name:'Reward', status:'approved',
-            reason: reason||'Admin reward',
-            date:new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}),
-            timestamp:Date.now(), createdAt:serverTimestamp()
-          });
-          if(currentUser && u.id===currentUser.uid){ S.coins+=amt; S.totalCoins+=amt; }
-        }
-        done++;
-      } catch(e){ failed++; console.warn('broadcast err for',u.id,e); }
-      progEl.textContent = `⏳ Sent to ${done} / ${adminUsersCache.length} users${failed?' ('+failed+' failed)':''}...`;
-    }
-    updateCoinUI();
-    btn.disabled = false;
-    document.getElementById('bc-amt').value='';
-    document.getElementById('bc-reason').value='';
-    progEl.textContent = `✅ Done! Sent ${amt.toLocaleString()} 🪙 to ${done} users${failed?' ('+failed+' failed)':''}`;
-    showToast(`✅ Broadcast sent to ${done} users!`, false);
-    setTimeout(()=>{ progEl.textContent=''; }, 5000);
-  };
-
-  // ============================================================
-  //  DAILY CHECK-IN
-  // ============================================================
-  // Rewards: day 1→50, day 2→75, day 3→100, day 4→150, day 5→200, day 6→250, day 7→500
-  const CI_REWARDS = [50, 75, 100, 150, 200, 250, 500];
-  const CI_LABELS  = ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
-
-  async function checkDailyCheckIn(){
-    if(!currentUser) return;
-    const today = new Date().toDateString();
-    const lastCi = S.lastCheckin || null;
-    if(lastCi === today) return; // already claimed today
-    // Show popup
-    renderCheckInPopup();
-    document.getElementById('checkinPopup').classList.add('open');
-  }
-
-  function getDayIndex(){
-    // Returns 0-6 based on streak (capped at 7-day cycle)
-    const streak = S.streak || 1;
-    return Math.min((streak - 1) % 7, 6);
-  }
-
-  function renderCheckInPopup(){
-    const dayIdx = getDayIndex();
-    const reward = CI_REWARDS[dayIdx];
-    const streak = S.streak || 1;
-
-    // Build day bubbles
-    let daysHtml = CI_REWARDS.map((r,i)=>{
-      let cls = 'ci-day';
-      if(i < dayIdx) cls += ' claimed';
-      else if(i === dayIdx) cls += ' today';
-      else cls += ' future';
-      const emoji = i===6 ? '👑' : '🪙';
-      return `<div class="${cls}"><div style="font-size:14px;">${emoji}</div><div class="ci-coins">${r}</div><div style="font-size:8px;margin-top:1px;">${CI_LABELS[i]}</div></div>`;
-    }).join('');
-
-    document.getElementById('ci-days').innerHTML = daysHtml;
-    const ciStreakEl = document.getElementById('ci-streak-txt');
-    if(ciStreakEl) ciStreakEl.textContent = `${streak} day streak 🔥`;
-    document.getElementById('ci-reward').textContent = '+' + reward.toLocaleString() + ' 🪙';
-    document.getElementById('ci-reward-label').textContent = `Day ${dayIdx+1} reward — Streak: ${streak} day${streak!==1?'s':''}`;
-    const btn = document.getElementById('ci-claim-btn');
-    btn.disabled = false;
-    btn.textContent = '🎁 CLAIM REWARD';
-  }
-
-  window.claimDailyCheckIn = async function(){
-    if(!currentUser) return;
-    const today = new Date().toDateString();
-    const dayIdx = getDayIndex();
-    const reward = CI_REWARDS[dayIdx];
-    const btn = document.getElementById('ci-claim-btn');
-    btn.disabled = true;
-    btn.textContent = '⏳ Claiming...';
-    try {
-      const ref = doc(db,'users',currentUser.uid);
-      // Update streak
-      const yesterday = new Date(Date.now()-86400000).toDateString();
-      const newStreak = (S.lastCheckin===yesterday) ? (S.streak||1)+1 : 1;
-      S.coins += reward;
-      S.totalCoins += reward;
-      S.streak = newStreak;
-      S.lastCheckin = today;
-      await updateDoc(ref,{
-        coins: S.coins,
-        totalCoins: S.totalCoins,
-        streak: newStreak,
-        lastCheckin: today,
-        updatedAt: serverTimestamp()
-      });
-      await addDoc(collection(db,'users',currentUser.uid,'transactions'),{
-        uid:currentUser.uid, email:currentUser.email,
-        username:S.username||'Player',
-        coins:reward, rupees:'0.00',
-        method:'checkin', acc:'Daily Check-In',
-        name:'Check-In Reward', status:'approved',
-        reason:`Day ${dayIdx+1} daily check-in`,
-        date:new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}),
-        timestamp:Date.now(), createdAt:serverTimestamp()
-      });
-      updateCoinUI();
-      btn.textContent = '✅ Claimed!';
-      showToast(`🎁 +${reward.toLocaleString()} coins! Day ${dayIdx+1} streak!`, false);
-      setTimeout(()=>{ document.getElementById('checkinPopup').classList.remove('open'); }, 1600);
-    } catch(e){
-      btn.disabled = false;
-      btn.textContent = '🎁 CLAIM REWARD';
-      showToast('Error: '+e.message, true);
-    }
-  };
-
-  window.closeCheckin = function(){
-    document.getElementById('checkinPopup').classList.remove('open');
-  };
-
   // ============================================================
   //  TOAST
   // ============================================================
@@ -1937,7 +1750,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
   <div class="home-nav">
     <div class="home-nav-btn" onclick="openWallet()"><div class="ni">💰</div>WALLET</div>
     <div class="home-nav-btn" onclick="openProfile()"><div class="ni">👤</div>PROFILE</div>
-    <div id="adminNavBtn" class="home-nav-btn admin-only" onclick="openAdminLogin()"><div class="ni">🛡️</div>ADMIN</div>
+    <div class="home-nav-btn" onclick="openAdminLogin()"><div class="ni">🛡️</div>ADMIN</div>
   </div>
 </div>
 
@@ -2043,7 +1856,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
   <div class="sec-head" style="margin:8px 14px 8px;">🏅 Leaderboard</div>
   <div id="leaderboardList" style="padding-bottom:6px;"></div>
   <div class="sec-head" style="margin:8px 14px 8px;">⚙️ More</div>
-  <div id="adminMenuBtn" class="menu-it admin-only" onclick="openAdminLogin()"><div class="mi-ic">🛡️</div><div class="mi-lb">Admin Panel</div><div class="mi-ar">›</div></div>
+  <div class="menu-it" onclick="openAdminLogin()"><div class="mi-ic">🛡️</div><div class="mi-lb">Admin Panel</div><div class="mi-ar">›</div></div>
   <div class="menu-it" onclick="showToast('Coming soon!',false)"><div class="mi-ic">👥</div><div class="mi-lb">Invite Friends (+500 🪙)</div><div class="mi-ar">›</div></div>
   <div class="menu-it" onclick="showToast('Support: @Metro_Rush_Bot',false)"><div class="mi-ic">💬</div><div class="mi-lb">Support</div><div class="mi-ar">›</div></div>
   <div class="menu-it" onclick="authLogout()"><div class="mi-ic">🚪</div><div class="mi-lb">Logout</div><div class="mi-ar">›</div></div>
@@ -2110,33 +1923,8 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <button class="gc-btn" onclick="adminGiveCoins()">➕ ADD COINS</button>
       </div>
 
-      <!-- Broadcast Reward Coins -->
-      <div class="ad-sec-head" style="margin-top:14px;">🎁 Broadcast Reward to ALL Users</div>
-      <div class="bc-card">
-        <div class="bc-desc">Send coins to every registered user at once. Great for events, milestones, or promotions. This updates every user's wallet in Firestore.</div>
-        <div class="bc-row">
-          <input type="number" class="bc-inp" id="bc-amt" placeholder="Coins (min 10)" min="10">
-          <input type="text" class="bc-inp" id="bc-reason" placeholder="Reason (e.g. Event reward)">
-        </div>
-        <button class="bc-btn" id="bc-btn" onclick="adminBroadcastCoins()">📡 SEND TO ALL USERS</button>
-        <div class="bc-progress" id="bc-progress"></div>
-      </div>
-
+      
     </div>
-  </div>
-</div>
-
-<!-- ===== DAILY CHECK-IN POPUP ===== -->
-<div id="checkinPopup">
-  <div class="ci-box">
-    <div class="ci-title">🎁 DAILY REWARD</div>
-    <div class="ci-sub">COME BACK EVERY DAY FOR BIGGER REWARDS</div>
-    <div class="ci-streak-info">🔥 <span id="ci-streak-txt">Loading streak...</span></div>
-    <div class="ci-days" id="ci-days"></div>
-    <div class="ci-reward" id="ci-reward">+0 🪙</div>
-    <div class="ci-reward-label" id="ci-reward-label">Today's reward</div>
-    <button class="ci-btn" id="ci-claim-btn" onclick="claimDailyCheckIn()">🎁 CLAIM REWARD</button>
-    <div class="ci-skip" onclick="closeCheckin()">Maybe later</div>
   </div>
 </div>
 
@@ -2150,4 +1938,11 @@ canvas{display:block;position:absolute;top:0;left:0;}
     <h3 id="m-title">Confirm</h3>
     <p id="m-body"></p>
     <div class="modal-acts">
-      <button class="mb2" onclick="closeModal()">Cancel</butto
+      <button class="mb2" onclick="closeModal()">Cancel</button>
+      <button class="mb1" onclick="confirmWd()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
