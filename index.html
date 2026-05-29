@@ -558,7 +558,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
 .lb-name{font-size:13px;font-weight:700;flex:1;}
 .lb-score{font-family:'Bangers',cursive;font-size:18px;color:var(--accent);}
 </style>
-<!-- Ad SDK is loaded dynamically on game end only -->
+<script src='//libtl.com/sdk.js' data-zone='11069622' data-sdk='show_11069622'></script>
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -885,44 +885,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
     document.getElementById('gameoverScreen').classList.remove('hidden');
     checkAchs();
     if(navigator.vibrate) navigator.vibrate([100,50,100]);
-    showAdOnGameEnd();
-  }
-
-  // ============================================================
-  //  AD — loaded once, called only when game ends
-  // ============================================================
-  let adSdkLoaded = false;
-  let adSdkLoading = false;
-  const adSdkCallbacks = [];
-
-  function loadAdSdk(callback){
-    if(adSdkLoaded){ callback(); return; }
-    adSdkCallbacks.push(callback);
-    if(adSdkLoading) return;
-    adSdkLoading = true;
-    const s = document.createElement('script');
-    s.src = '//libtl.com/sdk.js';
-    s.setAttribute('data-zone','11069622');
-    s.setAttribute('data-sdk','show_11069622');
-    s.onload = function(){
-      adSdkLoaded = true;
-      adSdkLoading = false;
-      adSdkCallbacks.forEach(cb => { try{ cb(); }catch(e){} });
-      adSdkCallbacks.length = 0;
-    };
-    s.onerror = function(){
-      adSdkLoading = false;
-      adSdkCallbacks.length = 0;
-    };
-    document.head.appendChild(s);
-  }
-
-  function showAdOnGameEnd(){
-    loadAdSdk(function(){
-      try{
-        show_11069622({type:'inApp',inAppSettings:{frequency:1,capping:1,interval:0,timeout:5,everyPage:true}});
-      }catch(e){}
-    });
+    try{ show_11069622({type:'inApp',inAppSettings:{frequency:1,capping:1,interval:0,timeout:5,everyPage:true}}); }catch(e){}
   }
 
   async function updateLeaderboard(score){
