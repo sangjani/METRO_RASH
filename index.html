@@ -1293,25 +1293,25 @@ canvas{display:block;position:absolute;top:0;left:0;}
   window.openWallet=function(){ document.getElementById('walletView').classList.add('open'); updateWalletUI(); };
   window.closeWallet=function(){ document.getElementById('walletView').classList.remove('open'); };
   function updateWalletUI(){
-    const bal=(S.coins/100).toFixed(2);
+    const bal=(S.coins/400).toFixed(2);
     document.getElementById('wv-bal').textContent=bal;
     document.getElementById('wv-coins').textContent=S.coins.toLocaleString();
     renderTx();
   }
   window.updateWdPreview=function(){
     const c=parseInt(document.getElementById('wd-coins').value)||0;
-    document.getElementById('wd-preview').textContent='₹'+(c/100).toFixed(2);
+    document.getElementById('wd-preview').textContent='₹'+(c/400).toFixed(2);
   };
   window.submitWithdrawal=async function(){
     const coins=parseInt(document.getElementById('wd-coins').value)||0;
     const method=document.getElementById('wd-method').value;
     const acc=document.getElementById('wd-acc').value.trim();
     const name=document.getElementById('wd-name').value.trim();
-    if(coins<5000){ showToast('Minimum 5000 coins!',true); return; }
+    if(coins<50000){ showToast('Minimum 50000 coins!',true); return; }
     if(coins>S.coins){ showToast('Not enough coins!',true); return; }
     if(!acc){ showToast('Enter account number!',true); return; }
     if(!name){ showToast('Enter account name!',true); return; }
-    const rupees=(coins/100).toFixed(2);
+    const rupees=(coins/400).toFixed(2);
     document.getElementById('m-body').textContent=`Withdraw ${coins.toLocaleString()} coins for ₹${rupees} via ${method.toUpperCase()} to ${acc}?`;
     pendingWd={coins,method,acc,name,rupees};
     document.getElementById('modal').classList.add('open');
@@ -1932,7 +1932,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
   <div class="game-sub">Run · Dodge · Earn</div>
   <div class="home-user-tag" id="homeUserTag"></div>
   <button class="btn-play" onclick="startGame()">PLAY</button>
-  <div class="coin-rate-tag">🪙 1000 Coins = ₹10 · Withdraw via EasyPaisa/JazzCash</div>
+  <div class="coin-rate-tag">🪙 2000 Coins = ₹5 · Withdraw via EasyPaisa/JazzCash</div>
   <button class="btn-logout-home" onclick="authLogout()">Logout</button>
   <div class="home-nav">
     <div class="home-nav-btn" onclick="openWallet()"><div class="ni">💰</div>WALLET</div>
@@ -1980,15 +1980,15 @@ canvas{display:block;position:absolute;top:0;left:0;}
   <div class="rate-card">
     <div class="ri">📊</div>
     <div>
-      <div class="rv">1000 Coins = ₹10</div>
-      <div class="rt">Minimum withdrawal: 5000 Coins = ₹50</div>
+      <div class="rv">2000 Coins = ₹5</div>
+      <div class="rt">Minimum withdrawal: 50,000 Coins = ₹125</div>
     </div>
   </div>
   <div class="sec-head">💸 Request Withdrawal</div>
   <div class="wd-card">
     <div class="inp-group">
       <label class="inp-label">Coins to Withdraw</label>
-      <input type="number" class="inp-field" id="wd-coins" placeholder="Minimum 5000" min="5000" step="1000" oninput="updateWdPreview()">
+      <input type="number" class="inp-field" id="wd-coins" placeholder="Minimum 50000" min="50000" step="1000" oninput="updateWdPreview()">
     </div>
     <div class="inp-group">
       <label class="inp-label">Payment Method</label>
